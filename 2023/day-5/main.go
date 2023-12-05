@@ -41,12 +41,12 @@ type SeedRange struct {
 	Start  uint
 	Length uint
 }
-type Almanac struct {
+type Almanach struct {
 	Seeds []SeedRange
 	Maps  []CategoryMap
 }
 
-func (a *Almanac) SeedLocation(seed uint) uint {
+func (a *Almanach) SeedLocation(seed uint) uint {
 	currentCategory := "seed"
 	currentValue := seed
 
@@ -61,8 +61,41 @@ func (a *Almanac) SeedLocation(seed uint) uint {
 	return currentValue
 }
 
-func AlmanacFromString(lines []string) Almanac {
-	res := Almanac{}
+func (almanach *Almanach) MinimumLocationForSeedRange(seed SeedRange) uint {
+	min := almanach.SeedLocation(seed.Start)
+	for i := seed.Start + 1; i < seed.Start+seed.Length; i++ {
+		location := almanach.SeedLocation(i)
+		if location < min {
+			min = location
+		}
+	}
+	return min
+}
+
+func (almanach *Almanach) MinimumLocation() uint {
+	var wg sync.WaitGroup
+	minimums := make(chan uint, len(almanach.Seeds))
+
+	for _, seed := range almanach.Seeds {
+		wg.Add(1)
+		go func(almanach *Almanach, seed SeedRange) {
+			minimums <- almanach.MinimumLocationForSeedRange(seed)
+			wg.Done()
+		}(almanach, seed)
+	}
+	wg.Wait()
+	min := <-minimums
+	for len(minimums) > 0 {
+		m := <-minimums
+		if m < min {
+			min = m
+		}
+	}
+	return min
+}
+
+func AlmanacFromString(lines []string) Almanach {
+	res := Almanach{}
 	seeds := strings.Split(lines[0][7:], " ")
 	for i := 0; i < len(seeds); i += 2 {
 		start, err := strconv.Atoi(seeds[i])
@@ -120,31 +153,5 @@ func AlmanacFromString(lines []string) Almanac {
 func main() {
 	input := parseInput()
 	almanach := AlmanacFromString(input)
-
-	var wg sync.WaitGroup
-	minimums := make(chan uint, len(almanach.Seeds))
-
-	for _, seed := range almanach.Seeds {
-		wg.Add(1)
-		go func(seed SeedRange) {
-			localMin := almanach.SeedLocation(seed.Start)
-			for i := seed.Start + 1; i < seed.Start+seed.Length; i++ {
-				location := almanach.SeedLocation(i)
-				if location < localMin {
-					localMin = location
-				}
-			}
-			minimums <- localMin
-			wg.Done()
-		}(seed)
-	}
-	wg.Wait()
-	min := <-minimums
-	for len(minimums) > 0 {
-		m := <-minimums
-		if m < min {
-			min = m
-		}
-	}
-	fmt.Println(min)
+	fmt.Println(almanach.MinimumLocation())
 }
