@@ -53,11 +53,9 @@ func main() {
 	for _, instruction := range plan {
 		nextPos := pos.Add(instruction.Dir.ToVec().Scale(instruction.Count))
 
-		// no idea why + instruction.Count
 		area += (pos.Y+nextPos.Y)*(pos.X-nextPos.X) + instruction.Count
 
 		pos = nextPos
 	}
-	// no idea why +1
 	fmt.Println(area/2 + 1)
 }
